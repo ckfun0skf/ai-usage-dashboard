@@ -50,13 +50,19 @@ function renderKpis(events) {
   $("#kpi-cache-rate").textContent = "Cache share " + (s.total ? s.cached / s.total * 100 : 0).toFixed(1) + "%";
 }
 function renderUsageBreakdown(events) {
-  const groups = groupBy(events, usageOf).sort((a,b) => b.summary.total - a.summary.total);
-  const total = groups.reduce((s,g) => s + g.summary.total, 0);
-  $("#usage-donut-total").textContent = fmt(total);
-  let angle = 0;
-  const slices = groups.map((g,i) => { const start = angle; angle += total ? g.summary.total / total * 360 : 0; return colors[i % colors.length] + " " + start + "deg " + angle + "deg"; });
-  $("#usage-donut").style.background = total ? "conic-gradient(" + slices.join(",") + ")" : "conic-gradient(#30394a 0deg 360deg)";
-  $("#usage-breakdown-list").innerHTML = groups.length ? groups.map((g,i) => '<div class="usage-breakdown-row"><span class="breakdown-name"><i class="legend-dot" style="background:' + colors[i % colors.length] + '"></i>' + safe(g.key) + '</span><strong>' + exactFmt(g.summary.total) + '</strong><small>' + (total ? g.summary.total / total * 100 : 0).toFixed(1) + '%</small></div>').join("") : '<div class="empty-small">No usage categories found in this date range.</div>';
+  const definitions = [
+    ["prompt","prompt-text-tokens","Input text"],
+    ["completion","completion-text-tokens","Output text"],
+    ["cached","cached-prompt-text-tokens","Cached input"],
+    ["cacheWrite","cache-write-text-tokens","Cache write"]
+  ];
+  const groups = definitions.map(([key,field,label])=>({key:label,field,summary:{total:events.reduce((sum,e)=>sum+(Number(e[key])||0),0)}})).filter(g=>g.summary.total>0).sort((a,b)=>b.summary.total-a.summary.total);
+  const total = groups.reduce((sum,g)=>sum+g.summary.total,0);
+  $("#usage-donut-total").textContent=fmt(total);
+  let angle=0;
+  const slices=groups.map((g,i)=>{const start=angle;angle+=total?g.summary.total/total*360:0;return colors[i%colors.length]+" "+start+"deg "+angle+"deg";});
+  $("#usage-donut").style.background=total?"conic-gradient("+slices.join(",")+")":"conic-gradient(#30394a 0deg 360deg)";
+  $("#usage-breakdown-list").innerHTML=groups.length?groups.map((g,i)=>'<div class="usage-breakdown-row"><span class="breakdown-name"><i class="legend-dot" style="background:'+colors[i%colors.length]+'"></i>'+safe(g.key)+'<small class="token-field-name">'+safe(g.field)+'</small></span><strong>'+exactFmt(g.summary.total)+'</strong><small>'+(total?g.summary.total/total*100:0).toFixed(1)+'%</small></div>').join(""):'<div class="empty-small">No token fields found in the Usage JSON for this date range.</div>';
 }
 function renderModels(events) {
   const groups=groupBy(events,e=>e.model||"Grok (unspecified)").sort((a,b)=>b.summary.total-a.summary.total);
@@ -127,6 +133,24 @@ function renderEvents(events) {
   $("#table-count").textContent=filtered.length.toLocaleString()+" events";$("#page-label").textContent="Page "+state.page+" of "+pages;$("#prev-page").disabled=state.page<=1;$("#next-page").disabled=state.page>=pages;$("#events-subtitle").textContent=filtered.length.toLocaleString()+" records in selected date range";
 }
 function renderImportHistory() { $("#import-history-meta").textContent=state.events.length?state.events.length.toLocaleString()+" events saved locally · Latest file: "+(state.sourceName||"Grok Usage CSV"):"No usage data saved in this browser yet."; }
+function drawDetailChart(events) {
+  const canvas=$("#detail-chart"); if(!canvas)return;
+  const wrap=canvas.parentElement,rect=wrap.getBoundingClientRect(),dpr=window.devicePixelRatio||1;
+  canvas.width=Math.max(1,Math.floor(rect.width*dpr));canvas.height=Math.max(1,Math.floor(rect.height*dpr));
+  const ctx=canvas.getContext("2d");ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,rect.width,rect.height);
+  const buckets=bucketEvents(events);if(!buckets.length||rect.width<10||rect.height<10)return;
+  const pad={left:45,right:12,top:16,bottom:28},pw=rect.width-pad.left-pad.right,ph=rect.height-pad.top-pad.bottom;
+  const values=buckets.map(b=>b.total),max=Math.max(...values,1),scale=max*1.12;
+  ctx.font="10px system-ui";ctx.textBaseline="middle";
+  for(let i=0;i<=3;i++){const y=pad.top+ph*i/3;ctx.strokeStyle="#293347";ctx.beginPath();ctx.moveTo(pad.left,y);ctx.lineTo(rect.width-pad.right,y);ctx.stroke();ctx.fillStyle="#8290a8";ctx.textAlign="right";ctx.fillText(fmt(scale*(1-i/3)),pad.left-7,y);}
+  const pts=buckets.map((b,i)=>({x:pad.left+(buckets.length===1?pw/2:i/(buckets.length-1)*pw),y:pad.top+ph*(1-values[i]/scale),b}));
+  const grad=ctx.createLinearGradient(0,pad.top,0,pad.top+ph);grad.addColorStop(0,"#a78bfa55");grad.addColorStop(1,"#a78bfa00");
+  ctx.beginPath();ctx.moveTo(pts[0].x,pad.top+ph);pts.forEach(p=>ctx.lineTo(p.x,p.y));ctx.lineTo(pts[pts.length-1].x,pad.top+ph);ctx.closePath();ctx.fillStyle=grad;ctx.fill();
+  ctx.beginPath();pts.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.strokeStyle="#b7a5ff";ctx.lineWidth=2.5;ctx.stroke();
+  pts.forEach(p=>{ctx.beginPath();ctx.arc(p.x,p.y,3,0,Math.PI*2);ctx.fillStyle="#d8ceff";ctx.fill();});
+  const ticks=Math.min(5,pts.length);ctx.fillStyle="#8290a8";ctx.textAlign="center";ctx.textBaseline="top";
+  for(let i=0;i<ticks;i++){const p=pts[Math.round(i*(pts.length-1)/Math.max(ticks-1,1))];ctx.fillText(new Date(p.b.timestamp).toLocaleDateString(undefined,{month:"short",day:"numeric"}),p.x,rect.height-pad.bottom+8);}
+}
 function render() {
   const events=activeRange();renderKpis(events);renderUsageBreakdown(events);renderModels(events);renderProducts(events);renderUsers(events);renderChart(events);renderEvents(events);
   $("#dataset-name").textContent=state.sourceName||"No data imported yet";
@@ -154,9 +178,11 @@ function openProduct(product, events=activeRange()) {
   $("#detail-kpis").innerHTML='<div class="detail-kpi"><small>Total tokens</small><strong>'+exactFmt(sum.total)+'</strong></div><div class="detail-kpi"><small>Usage events</small><strong>'+exactFmt(sum.requests)+'</strong></div><div class="detail-kpi"><small>Input + cache</small><strong>'+fmt(sum.prompt+sum.cached+sum.cacheWrite)+'</strong></div><div class="detail-kpi"><small>Output tokens</small><strong>'+fmt(sum.completion)+'</strong></div>';
   function list(groups){return groups.length?groups.map(g=>'<div class="detail-list-row"><span>'+safe(g.key)+'</span><strong>'+exactFmt(g.summary.total)+' tokens</strong></div>').join(""):'<div class="empty-small">No data in this range.</div>';}
   $("#detail-usage-list").innerHTML=list(groupBy(subset,usageOf).sort((a,b)=>b.summary.total-a.summary.total));
-  $("#detail-model-list").innerHTML=list(groupBy(subset,e=>e.model).sort((a,b)=>b.summary.total-a.summary.total));
+  $("#detail-model-list").innerHTML=list(groupBy(subset,e=>e.model||"Grok (unspecified)").sort((a,b)=>b.summary.total-a.summary.total));
   $("#detail-day-list").innerHTML=days.slice(0,14).map(d=>'<div class="detail-list-row"><span>'+safe(d.key)+' · '+d.summary.requests+' events</span><strong>'+exactFmt(d.summary.total)+' tokens</strong></div>').join("")||'<div class="empty-small">No daily usage in this range.</div>';
+  drawDetailChart(subset);
   $("#product-detail-backdrop").hidden=false;
+  requestAnimationFrame(()=>drawDetailChart(subset));
 }
 function openUser(user, events=activeRange()) {
   state.detailKind="user";state.selectedUser=user;
@@ -169,6 +195,7 @@ function openUser(user, events=activeRange()) {
   $("#detail-usage-list").innerHTML=list(groupBy(subset,usageOf).sort((a,b)=>b.summary.total-a.summary.total));
   $("#detail-model-list").innerHTML=list(products);
   $("#detail-day-list").innerHTML=days.slice(0,14).map(d=>'<div class="detail-list-row"><span>'+safe(d.key)+' · '+d.summary.requests+' events</span><strong>'+exactFmt(d.summary.total)+' tokens</strong></div>').join("")||'<div class="empty-small">No daily usage in this range.</div>';
+  drawDetailChart(subset);
   $("#detail-model-heading").textContent="Usage by product";$("#detail-day-heading").textContent="Daily token usage";$("#view-product-events").textContent="View this user’s records";
   $("#product-detail-backdrop").hidden=false;
 }
@@ -216,6 +243,6 @@ $("#usage-chart").addEventListener("mouseleave",()=>{state.hoveredIndex=-1;rende
 $("#close-detail").addEventListener("click",()=>$("#product-detail-backdrop").hidden=true);$("#product-detail-backdrop").addEventListener("click",e=>{if(e.target===$("#product-detail-backdrop"))$("#product-detail-backdrop").hidden=true;});
 $("#view-product-events").addEventListener("click",()=>{const target=state.detailKind==="user"?state.selectedUser:state.selectedProduct;state.search=target;$("#event-search").value=target;state.page=1;$("#product-detail-backdrop").hidden=true;renderEvents(activeRange());$("#events-subtitle").textContent="Filtered to "+displayUser(target);document.querySelector(".table-panel").scrollIntoView({behavior:"smooth",block:"start"});});
 $("#mask-emails").addEventListener("change",e=>{state.maskEmails=e.target.checked;renderUsers(activeRange());renderEvents(activeRange());if(!$("#product-detail-backdrop").hidden&&state.detailKind==="user")openUser(state.selectedUser);});
-window.addEventListener("resize",()=>renderChart(activeRange()));
+window.addEventListener("resize",()=>{renderChart(activeRange());if(!$("#product-detail-backdrop").hidden)drawDetailChart(state.detailKind==="user"?activeRange().filter(e=>userOf(e)===state.selectedUser):activeRange().filter(e=>productOf(e)===state.selectedProduct));});
 try{const saved=await usageStore.load();if(saved?.events?.length){state.events=saved.events;state.sourceName=saved.sourceName||"Saved usage history";state.skippedRows=saved.skippedRows||0;state.lastImport=saved.lastImport||null;state.range="all";}}catch(error){console.warn("Browser storage unavailable:",error);}
 render();

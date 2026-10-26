@@ -43,3 +43,8 @@ The first adapter expects `Event Time`, `Product`, and `Usage` columns. The `Usa
 - A model registry-style presentation gives each model a local icon and label, with a generic fallback for future providers.
 - If the Grok export includes `User Email`, the dashboard ranks users by tokens and shows their top product and usage type. Selecting a user opens a breakdown by usage type, product and day.
 - Email masking is available for screen sharing. Email values remain in the browser's local IndexedDB with the imported events; there is no server upload. CSV export includes the User Email field when present.
+
+ 
+## Clearing saved data
+
+Use **Clear this app’s data** in the Import page’s Local Dataset section to remove this dashboard’s saved usage dataset from its own IndexedDB database. The action asks for confirmation and does not clear localStorage, IndexedDB databases, or other storage used by other pages on the same domain.

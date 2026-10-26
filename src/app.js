@@ -17,10 +17,11 @@ const modelMeta = model => { const value=String(model||"Grok (unspecified)"); co
 const modelBadge = model => { const m=modelMeta(model); return m.kind==="grok" ? '<span class="model-logo grok" aria-label="Grok logo"><img src="https://grok.com/images/favicon.svg" alt="" loading="lazy"></span>' : '<span class="model-logo '+m.kind+'" aria-hidden="true">'+safe(m.icon)+'</span>'; };
 const displayUser = email => { if(!state.maskEmails||email==="Unknown user")return email; const parts=email.split("@"); return parts.length===2?parts[0].slice(0,1)+"•••@"+parts[1]:"••••••"; };
 function switchPage(page) {
-  $("#dashboard-page").hidden = page !== "dashboard"; $("#import-page").hidden = page !== "import";
-  $("#page-title").textContent = page === "dashboard" ? "Usage overview" : "Import usage data";
+  $("#dashboard-page").hidden = page !== "dashboard"; $("#explorer-page").hidden = page !== "explorer"; $("#import-page").hidden = page !== "import";
+  $("#page-title").textContent = page === "dashboard" ? "Usage overview" : page === "explorer" ? "Data Explorer" : "Import usage data";
   document.querySelectorAll(".nav-item[data-page]").forEach(el => el.classList.toggle("active", el.dataset.page === page));
   if (page === "import") renderImportHistory();
+  if (page === "explorer") window.dispatchEvent(new CustomEvent("usage-data-updated"));
   if (page === "dashboard") requestAnimationFrame(() => renderChart(activeRange()));
 }
 function activeRange() {
@@ -139,7 +140,7 @@ async function importFile(file) {
     const source=await file.text(),adapter=usageAdapters.find(a=>a.supports(file.name,source.slice(0,12000)));
     if(!adapter)throw new Error("This does not look like a supported Grok Usage CSV. Expected Event Time, Product and Usage columns.");
     const result=adapter.parse(source),saved=await usageStore.save({sourceName:file.name,adapterId:adapter.id,importedAt:Date.now(),sourceRows:result.sourceRows,skippedRows:result.skippedRows,events:result.events});
-    state.events=saved.events;state.sourceName=file.name;state.skippedRows=result.skippedRows;state.lastImport={added:saved.added,duplicates:saved.duplicates,skipped:result.skippedRows};state.range="all";state.page=1;state.search="";
+    state.events=saved.events;window.dispatchEvent(new CustomEvent("usage-data-updated"));state.sourceName=file.name;state.skippedRows=result.skippedRows;state.lastImport={added:saved.added,duplicates:saved.duplicates,skipped:result.skippedRows};state.range="all";state.page=1;state.search="";
     $("#range-select").value="all";$("#event-search").value="";
     $("#import-result").innerHTML="<strong>Import complete</strong><br>Added <b>"+saved.added.toLocaleString()+"</b> new events · Ignored <b>"+saved.duplicates.toLocaleString()+"</b> duplicates · Skipped <b>"+result.skippedRows.toLocaleString()+"</b> invalid rows.<br>Total saved history: <b>"+saved.events.length.toLocaleString()+"</b> events.";
     $("#import-result").hidden=false;$("#dropzone-title").textContent="Import another CSV";$("#dropzone-subtitle").textContent="Drop a new export or click to choose a file";
@@ -182,13 +183,14 @@ $("#menu-toggle").addEventListener("click",()=>{const open=!document.body.classL
 $("#menu-backdrop").addEventListener("click",closeMobileMenu);
 document.querySelectorAll(".nav-item[data-page]").forEach(el=>el.addEventListener("click",()=>{switchPage(el.dataset.page);closeMobileMenu();}));
 $("#back-dashboard").addEventListener("click",()=>switchPage("dashboard"));
+window.addEventListener("usage-data-updated",()=>window.dispatchEvent(new CustomEvent("usage-data-changed",{detail:state.events})));
 $("#clear-data").addEventListener("click",async()=>{
   if(!window.confirm("Clear all saved usage data for AI Usage Dashboard in this browser? This only deletes this app’s own saved dataset. Data belonging to other pages on this domain will not be changed."))return;
   const button=$("#clear-data");
   button.disabled=true;
   try{
     await usageStore.clear();
-    state.events=[];state.sourceName="";state.skippedRows=0;state.lastImport=null;state.range="all";state.custom=null;state.search="";state.page=1;state.selectedProduct="";state.selectedUser="";state.detailKind="product";
+    state.events=[];window.dispatchEvent(new CustomEvent("usage-data-updated"));state.sourceName="";state.skippedRows=0;state.lastImport=null;state.range="all";state.custom=null;state.search="";state.page=1;state.selectedProduct="";state.selectedUser="";state.detailKind="product";
     $("#event-search").value="";$("#range-select").value="all";$("#custom-range").hidden=true;$("#import-error").hidden=true;$("#import-result").hidden=true;
     $("#dropzone-title").textContent="Drop your CSV file here";$("#dropzone-subtitle").textContent="or click to browse files";
     $("#product-detail-backdrop").hidden=true;

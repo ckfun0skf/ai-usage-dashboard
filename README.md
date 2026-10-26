@@ -48,3 +48,13 @@ The first adapter expects `Event Time`, `Product`, and `Usage` columns. The `Usa
 ## Clearing saved data
 
 Use **Clear this app’s data** in the Import page’s Local Dataset section to remove this dashboard’s saved usage dataset from its own IndexedDB database. The action asks for confirmation and does not clear localStorage, IndexedDB databases, or other storage used by other pages on the same domain.
+
+
+## Data Explorer
+
+- Dedicated Data Explorer navigation alongside Dashboard and Import data.
+- Interactive filters for date range, product, model, user, usage type, and free-text search.
+- Choose a grouping dimension (day, product, model, user, or usage type) and metric (total, prompt, completion, cached tokens, usage events, or cost).
+- Live bar or line chart, grouped aggregate results, and matching raw event rows.
+- Export both grouped aggregates and matching raw events as CSV.
+- Queries run locally against the IndexedDB dataset; no server upload is required.

@@ -8,12 +8,12 @@ A small, browser-only analytics dashboard with a Dynatrace-inspired observabilit
 - Parse the JSON in the `Usage` column into prompt, completion, cached prompt, and cache-write token metrics.
 - Explore token totals over a selectable time range, an adaptive time-series chart, token composition, and individual events.
 - Search events and export the current time-range view to CSV.
-- Persist the most recently imported dataset in this browser using IndexedDB.
+- Accumulate repeated CSV imports in IndexedDB: add new events, deduplicate repeated events, and retain older events missing from later files.
 
 ## Privacy and storage
 
 - CSV parsing and analytics run in the browser.
-- The imported dataset is saved in this browser's IndexedDB. It is not uploaded to an application server.
+- Imported usage events are merged into this browser's IndexedDB. New imports never replace or delete older events, and duplicate event IDs are ignored. Data is not uploaded to an application server.
 - There is no server-side database or backend API.
 - The app does not load charting libraries or fonts from a CDN; visualizations use native Canvas and CSS.
 - Browser site-data clearing removes the saved dataset. Use a browser profile you trust if the CSV contains sensitive usage information.
@@ -32,7 +32,7 @@ The ingestion boundary is intentionally modular. To add another provider or file
 
 1. Create an adapter under `src/adapters/` implementing `id`, `label`, `supports(fileName, headerText)`, and `parse(text)`.
 2. Return normalized events with `timestamp`, `model`, `prompt`, `completion`, `cached`, `cacheWrite`, `total`, `usageType`, `cost`, and `currency`.
-3. Register the adapter in `usageAdapters` in `src/adapters/grok-usage-csv.js` (this registry can be moved into its own module as more adapters are added).
+3. Register the adapter in `usageAdapters` in `src/adapters/grok-usage-csv.js` (this registry can be moved into its own module as more adapters are added). Ensure each normalized event has a stable unique `id`; repeated imports are deduplicated by this key.
 
 The UI and charts consume normalized events rather than provider-specific columns.
 
@@ -44,7 +44,7 @@ Because this app uses JavaScript ES modules, serve the folder with any static fi
 python -m http.server 8000
 ```
 
-Then open `http://localhost:8000`. GitHub Pages deployment is configured in `.github/workflows/pages.yml`.
+Then open `http://localhost:8000`. For GitHub Pages without Actions, configure **Settings → Pages → Deploy from a branch → main → /(root)**. The repository contains only static assets and browser-side JavaScript.
 
 ## Supported input
 

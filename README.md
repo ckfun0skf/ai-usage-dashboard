@@ -36,3 +36,10 @@ Then open `http://localhost:8000`. For GitHub Pages without Actions, configure *
 ## Supported Grok CSV
 
 The first adapter expects `Event Time`, `Product`, and `Usage` columns. The `Usage` field contains JSON fields such as `prompt-text-tokens`, `completion-text-tokens`, `cached-prompt-text-tokens`, and `cache-write-text-tokens`. Product values are retained so the dashboard can group usage by product.
+
+
+## User and model analytics
+
+- A model registry-style presentation gives each model a local icon and label, with a generic fallback for future providers.
+- If the Grok export includes `User Email`, the dashboard ranks users by tokens and shows their top product and usage type. Selecting a user opens a breakdown by usage type, product and day.
+- Email masking is available for screen sharing. Email values remain in the browser's local IndexedDB with the imported events; there is no server upload. CSV export includes the User Email field when present.

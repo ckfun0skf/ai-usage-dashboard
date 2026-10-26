@@ -177,8 +177,11 @@ function exportCsv() {
   const rows=events.map(e=>[new Date(e.timestamp).toISOString(),productOf(e),e.model,userOf(e),usageOf(e),e.total,e.prompt,e.completion,e.cached,e.cacheWrite,e.cost,e.currency]);
   const blob=new Blob([[headers,...rows].map(row=>row.map(quote).join(",")).join("\r\n")],{type:"text/csv;charset=utf-8"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="ai-usage-dashboard-export.csv";a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
-document.querySelectorAll(".nav-item[data-page]").forEach(el=>el.addEventListener("click",()=>switchPage(el.dataset.page)));
-$("#header-import").addEventListener("click",()=>switchPage("import"));$("#back-dashboard").addEventListener("click",()=>switchPage("dashboard"));
+const closeMobileMenu=()=>{document.body.classList.remove("menu-open");$("#menu-toggle").setAttribute("aria-expanded","false");$("#menu-toggle").setAttribute("aria-label","Open navigation menu");$("#menu-backdrop").hidden=true;};
+$("#menu-toggle").addEventListener("click",()=>{const open=!document.body.classList.contains("menu-open");document.body.classList.toggle("menu-open",open);$("#menu-toggle").setAttribute("aria-expanded",String(open));$("#menu-toggle").setAttribute("aria-label",open?"Close navigation menu":"Open navigation menu");$("#menu-backdrop").hidden=!open;});
+$("#menu-backdrop").addEventListener("click",closeMobileMenu);
+document.querySelectorAll(".nav-item[data-page]").forEach(el=>el.addEventListener("click",()=>{switchPage(el.dataset.page);closeMobileMenu();}));
+$("#back-dashboard").addEventListener("click",()=>switchPage("dashboard"));
 $("#clear-data").addEventListener("click",async()=>{
   if(!window.confirm("Clear all saved usage data for AI Usage Dashboard in this browser? This only deletes this app’s own saved dataset. Data belonging to other pages on this domain will not be changed."))return;
   const button=$("#clear-data");

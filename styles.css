@@ -152,3 +152,6 @@
 @keyframes detailRowIn{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:translateX(0)}}
 @keyframes barGrow{from{transform:scaleX(.02);opacity:.45}to{transform:scaleX(1);opacity:1}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}.scroll-reveal{opacity:1;transform:none}}
+
+/* Product deep-dive token composition */
+.detail-token-composition{padding:15px;border:1px solid #252d3e;border-radius:12px;background:linear-gradient(145deg,#151b29,#10151e)}.detail-token-composition h3{margin:0 0 5px}.detail-token-composition>.panel-subtitle{margin:0 0 10px}.detail-donut-area{display:flex;justify-content:center;padding:12px 0 18px}.detail-donut{width:154px;height:154px;flex:none}.detail-token-composition .breakdown-list{width:100%}

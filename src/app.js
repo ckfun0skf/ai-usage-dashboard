@@ -50,20 +50,34 @@ function renderKpis(events) {
   $("#kpi-cache-rate").textContent = "Cache share " + (s.total ? s.cached / s.total * 100 : 0).toFixed(1) + "%";
 }
 function renderUsageBreakdown(events) {
+  renderTokenComposition(events, "#usage-donut", "#usage-donut-total", "#usage-breakdown-list");
+}
+function renderTokenComposition(events, donutSelector, totalSelector, listSelector) {
   const definitions = [
     ["prompt","prompt-text-tokens","Input text"],
     ["completion","completion-text-tokens","Output text"],
     ["cached","cached-prompt-text-tokens","Cached input"],
     ["cacheWrite","cache-write-text-tokens","Cache write"]
   ];
-  const groups = definitions.map(([key,field,label])=>({key:label,field,summary:{total:events.reduce((sum,e)=>sum+(Number(e[key])||0),0)}})).filter(g=>g.summary.total>0).sort((a,b)=>b.summary.total-a.summary.total);
-  const total = groups.reduce((sum,g)=>sum+g.summary.total,0);
-  $("#usage-donut-total").textContent=fmt(total);
+  const groups = definitions.map(([key,field,label]) => ({
+    key:label, field,
+    total:events.reduce((sum,e)=>sum+(Number(e[key])||0),0)
+  })).filter(g=>g.total>0).sort((x,y)=>y.total-x.total);
+  const total=groups.reduce((sum,g)=>sum+g.total,0);
+  const donut=$(donutSelector);
+  $(totalSelector).textContent=fmt(total);
   let angle=0;
-  const slices=groups.map((g,i)=>{const start=angle;angle+=total?g.summary.total/total*360:0;return colors[i%colors.length]+" "+start+"deg "+angle+"deg";});
-  $("#usage-donut").style.background=total?"conic-gradient("+slices.join(",")+")":"conic-gradient(#30394a 0deg 360deg)";
-  $("#usage-breakdown-list").innerHTML=groups.length?groups.map((g,i)=>'<div class="usage-breakdown-row"><span class="breakdown-name"><i class="legend-dot" style="background:'+colors[i%colors.length]+'"></i>'+safe(g.key)+'<small class="token-field-name">'+safe(g.field)+'</small></span><strong>'+exactFmt(g.summary.total)+'</strong><small>'+(total?g.summary.total/total*100:0).toFixed(1)+'%</small></div>').join(""):'<div class="empty-small">No token fields found in the Usage JSON for this date range.</div>';
+  const slices=groups.map((g,i)=>{
+    const start=angle;
+    angle+=total?g.total/total*360:0;
+    return colors[i%colors.length]+" "+start+"deg "+angle+"deg";
+  });
+  donut.style.background=total?"conic-gradient("+slices.join(",")+")":"conic-gradient(#30394a 0deg 360deg)";
+  $(listSelector).innerHTML=groups.length?groups.map((g,i)=>
+    '<div class="usage-breakdown-row"><span class="breakdown-name"><i class="legend-dot" style="background:'+colors[i%colors.length]+'"></i>'+safe(g.key)+'<small class="token-field-name">'+safe(g.field)+'</small></span><strong>'+exactFmt(g.total)+'</strong><small>'+(total?g.total/total*100:0).toFixed(1)+'%</small></div>'
+  ).join(""):'<div class="empty-small">No token fields found in the Usage JSON for this product.</div>';
 }
+
 function renderModels(events) {
   const groups=groupBy(events,e=>e.model||"Grok (unspecified)").sort((a,b)=>b.summary.total-a.summary.total);
   const total=groups.reduce((s,g)=>s+g.summary.total,0);
@@ -188,6 +202,7 @@ function openProduct(product, events=activeRange()) {
   $("#detail-usage-list").innerHTML=list(groupBy(subset,usageOf).sort((a,b)=>b.summary.total-a.summary.total));
   $("#detail-model-list").innerHTML=list(groupBy(subset,e=>e.model||"Grok (unspecified)").sort((a,b)=>b.summary.total-a.summary.total));
   $("#detail-day-list").innerHTML=days.slice(0,14).map(d=>'<div class="detail-list-row"><span>'+safe(d.key)+' · '+d.summary.requests+' events</span><strong>'+exactFmt(d.summary.total)+' tokens</strong></div>').join("")||'<div class="empty-small">No daily usage in this range.</div>';
+  renderTokenComposition(subset, "#detail-usage-donut", "#detail-usage-donut-total", "#detail-usage-breakdown-list");
   drawDetailChart(subset);
   $("#product-detail-backdrop").hidden=false;
   requestAnimationFrame(()=>drawDetailChart(subset));

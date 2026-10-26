@@ -14,7 +14,7 @@ const usageOf = e => e.usageType || "Uncategorised";
 const userOf = e => e.userEmail?.trim() || "Unknown user";
 const MODEL_REGISTRY = [{ id:"grok", match:/grok|xai|x\\.ai/i, provider:"xAI", icon:"✳", kind:"grok" }];
 const modelMeta = model => { const value=String(model||"Grok (unspecified)"); const config=MODEL_REGISTRY.find(item=>item.match.test(value)); return {label:value,icon:config?.icon||value.trim().slice(0,2).toUpperCase(),kind:config?.kind||"generic",provider:config?.provider||"Model provider"}; };
-const modelBadge = model => { const m=modelMeta(model); return m.kind==="grok" ? '<span class="model-logo grok" aria-label="Grok logo"><img src="https://grok.com/images/favicon.svg" alt="" loading="lazy"></span>' : '<span class="model-logo '+m.kind+'" aria-hidden="true">'+safe(m.icon)+'</span>'; };
+const modelBadge = model => { const m=modelMeta(model); return '<span class="model-logo '+m.kind+'" aria-label="'+(m.kind==="grok"?"Grok logo":"Model icon")+'" aria-hidden="true">'+(m.kind==="grok"?"✳":safe(m.icon))+'</span>'; };
 const displayUser = email => { if(!state.maskEmails||email==="Unknown user")return email; const parts=email.split("@"); return parts.length===2?parts[0].slice(0,1)+"•••@"+parts[1]:"••••••"; };
 function switchPage(page) {
   $("#dashboard-page").hidden = page !== "dashboard"; $("#explorer-page").hidden = page !== "explorer"; $("#import-page").hidden = page !== "import";

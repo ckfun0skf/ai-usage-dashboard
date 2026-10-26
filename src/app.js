@@ -179,6 +179,21 @@ function exportCsv() {
 }
 document.querySelectorAll(".nav-item[data-page]").forEach(el=>el.addEventListener("click",()=>switchPage(el.dataset.page)));
 $("#header-import").addEventListener("click",()=>switchPage("import"));$("#back-dashboard").addEventListener("click",()=>switchPage("dashboard"));
+$("#clear-data").addEventListener("click",async()=>{
+  if(!window.confirm("Clear all saved usage data for AI Usage Dashboard in this browser? This only deletes this app’s own saved dataset. Data belonging to other pages on this domain will not be changed."))return;
+  const button=$("#clear-data");
+  button.disabled=true;
+  try{
+    await usageStore.clear();
+    state.events=[];state.sourceName="";state.skippedRows=0;state.lastImport=null;state.range="all";state.custom=null;state.search="";state.page=1;state.selectedProduct="";state.selectedUser="";state.detailKind="product";
+    $("#event-search").value="";$("#range-select").value="all";$("#custom-range").hidden=true;$("#import-error").hidden=true;$("#import-result").hidden=true;
+    $("#dropzone-title").textContent="Drop your CSV file here";$("#dropzone-subtitle").textContent="or click to browse files";
+    $("#product-detail-backdrop").hidden=true;
+    render();
+  }catch(error){
+    window.alert("Could not clear this app’s saved data: "+(error?.message||"Unknown storage error"));
+  }finally{button.disabled=false;}
+});
 $("#csv-file").addEventListener("change",e=>{importFile(e.target.files?.[0]);e.target.value="";});
 $("#dropzone").addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();$("#csv-file").click();}});
 $("#dropzone").addEventListener("dragover",e=>{e.preventDefault();$("#dropzone").classList.add("dragging");});

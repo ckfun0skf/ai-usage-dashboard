@@ -30,7 +30,29 @@ async function transact(mode, operation) {
 
 export const usageStore = {
   async save(dataset) {
-    await transact("readwrite", store => store.put({ ...dataset, id: "latest" }));
+    const existing = await this.load();
+    const byId = new Map((existing?.events || []).map(event => [event.id, event]));
+    let added = 0;
+    let duplicates = 0;
+    for (const event of dataset.events) {
+      if (byId.has(event.id)) { duplicates++; continue; }
+      byId.set(event.id, event);
+      added++;
+    }
+    const mergedEvents = [...byId.values()].sort((a, b) => a.timestamp - b.timestamp);
+    const now = Date.now();
+    const merged = {
+      id: "latest",
+      sourceName: dataset.sourceName,
+      adapterId: dataset.adapterId,
+      importedAt: now,
+      sourceRows: mergedEvents.length,
+      skippedRows: dataset.skippedRows || 0,
+      lastImport: { sourceName: dataset.sourceName, importedAt: now, received: dataset.events.length, added, duplicates, skippedRows: dataset.skippedRows || 0 },
+      events: mergedEvents
+    };
+    await transact("readwrite", store => store.put(merged));
+    return { ...merged, added, duplicates };
   },
   async load() {
     return transact("readonly", store => store.get("latest"));

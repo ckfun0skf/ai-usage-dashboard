@@ -1,107 +1,18 @@
 <!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#10141c">
-  <title>AI Usage Dashboard</title>
-  <link rel="stylesheet" href="./styles.css">
-</head>
-<body>
-  <div class="app-shell">
-    <aside class="sidebar">
-      <a class="brand" href="./" aria-label="AI Usage Dashboard home"><span class="brand-mark">A</span><span>AI Usage<span class="muted"> / Insights</span></span></a>
-      <div class="side-label">WORKSPACE</div>
-      <button class="nav-item active" type="button"><span class="nav-icon">▦</span> Overview</button>
-      <button class="nav-item" id="open-import" type="button"><span class="nav-icon">↥</span> Import data</button>
-      <div class="sidebar-bottom">
-        <span class="status-dot"></span>
-        <div><strong>Local workspace</strong><small>Data stays in this browser</small></div>
-      </div>
-    </aside>
-
-    <main class="main-content">
-      <header class="topbar">
-        <div><div class="eyebrow">OBSERVABILITY / AI COST & USAGE</div><h1>Usage overview</h1></div>
-        <div class="top-actions">
-          <span class="privacy-pill"><span class="status-dot"></span> Browser storage only</span>
-          <button class="button button-primary" id="import-button" type="button"><span>＋</span> Import CSV</button>
-        </div>
-      </header>
-
-      <section class="toolbar panel">
-        <div class="dataset-info"><span class="dataset-icon">▤</span><div><strong id="dataset-name">No dataset loaded</strong><small id="dataset-meta">Import a Grok Usage CSV to begin</small></div></div>
-        <div class="toolbar-controls">
-          <label class="field-label" for="range-select">TIME RANGE</label>
-          <select id="range-select" class="select-control">
-            <option value="24h">Last 24 hours</option>
-            <option value="7d" selected>Last 7 days</option>
-            <option value="30d">Last 30 days</option>
-            <option value="all">All available time</option>
-            <option value="custom">Custom range</option>
-          </select>
-          <div id="custom-range" class="custom-range" hidden>
-            <input type="datetime-local" id="date-from" aria-label="Start date">
-            <span>to</span>
-            <input type="datetime-local" id="date-to" aria-label="End date">
-            <button class="button button-small" id="apply-range" type="button">Apply</button>
-          </div>
-        </div>
-      </section>
-
-      <section class="kpi-grid" aria-label="Usage summary">
-        <article class="kpi-card"><div class="kpi-heading">TOTAL TOKENS <span class="kpi-symbol violet">▥</span></div><div class="kpi-value" id="kpi-total">—</div><div class="kpi-foot"><span class="accent-violet" id="kpi-total-sub">Across all token types</span></div></article>
-        <article class="kpi-card"><div class="kpi-heading">REQUESTS <span class="kpi-symbol blue">↗</span></div><div class="kpi-value" id="kpi-requests">—</div><div class="kpi-foot"><span id="kpi-rpm">— requests / hour</span></div></article>
-        <article class="kpi-card"><div class="kpi-heading">PROMPT TOKENS <span class="kpi-symbol cyan">⇥</span></div><div class="kpi-value" id="kpi-prompt">—</div><div class="kpi-foot"><span>Uncached input tokens</span></div></article>
-        <article class="kpi-card"><div class="kpi-heading">COMPLETION TOKENS <span class="kpi-symbol green">⇤</span></div><div class="kpi-value" id="kpi-completion">—</div><div class="kpi-foot"><span>Generated output tokens</span></div></article>
-        <article class="kpi-card"><div class="kpi-heading">CACHED PROMPT <span class="kpi-symbol amber">◈</span></div><div class="kpi-value" id="kpi-cached">—</div><div class="kpi-foot"><span id="kpi-cache-rate">Cache share —</span></div></article>
-      </section>
-
-      <section class="content-grid">
-        <article class="panel chart-panel">
-          <div class="panel-heading">
-            <div><div class="eyebrow">USAGE OVER TIME</div><h2>Token throughput</h2><p class="panel-subtitle" id="chart-subtitle">Token volume across the selected period</p></div>
-            <div class="chart-actions"><select id="metric-select" class="select-control compact" aria-label="Chart metric"><option value="total">Total tokens</option><option value="prompt">Prompt tokens</option><option value="completion">Completion tokens</option><option value="cached">Cached prompt</option><option value="cacheWrite">Cache writes</option><option value="requests">Requests</option></select></div>
-          </div>
-          <div class="chart-legend"><span><i class="legend-dot violet-dot"></i><span id="legend-label">Total tokens</span></span><span class="chart-period" id="chart-period">Waiting for data</span></div>
-          <div class="chart-wrap"><canvas id="usage-chart" aria-label="Usage time series chart" role="img"></canvas><div id="chart-tooltip" class="chart-tooltip" hidden></div><div id="chart-empty" class="empty-chart">Import a CSV to explore usage over time.</div></div>
-          <div class="chart-footer"><span id="bucket-label">Adaptive time buckets</span><span>Hover chart for details</span></div>
-        </article>
-        <article class="panel breakdown-panel">
-          <div class="panel-heading"><div><div class="eyebrow">TOKEN COMPOSITION</div><h2>Breakdown</h2><p class="panel-subtitle">Share of selected-period usage</p></div></div>
-          <div class="donut-area"><div class="donut" id="breakdown-donut"><div class="donut-center"><strong id="donut-total">—</strong><small>tokens</small></div></div></div>
-          <div class="breakdown-list">
-            <div class="breakdown-row"><span class="breakdown-name"><i class="legend-dot violet-dot"></i>Prompt</span><strong id="break-prompt">—</strong><small id="pct-prompt">—</small></div>
-            <div class="breakdown-row"><span class="breakdown-name"><i class="legend-dot blue-dot"></i>Completion</span><strong id="break-completion">—</strong><small id="pct-completion">—</small></div>
-            <div class="breakdown-row"><span class="breakdown-name"><i class="legend-dot cyan-dot"></i>Cached prompt</span><strong id="break-cached">—</strong><small id="pct-cached">—</small></div>
-            <div class="breakdown-row"><span class="breakdown-name"><i class="legend-dot amber-dot"></i>Cache writes</span><strong id="break-cachewrite">—</strong><small id="pct-cachewrite">—</small></div>
-          </div>
-        </article>
-      </section>
-
-      <section class="bottom-grid">
-        <article class="panel table-panel">
-          <div class="panel-heading"><div><div class="eyebrow">EVENT EXPLORER</div><h2>Recent usage events</h2><p class="panel-subtitle" id="events-subtitle">Explore individual usage records</p></div><div class="table-tools"><input id="event-search" class="search-input" type="search" placeholder="Search events…" aria-label="Search events"><button id="export-button" class="button button-small" type="button">Export view ↓</button></div></div>
-          <div class="table-scroll"><table><thead><tr><th>EVENT TIME</th><th>MODEL</th><th>TOTAL TOKENS</th><th>PROMPT</th><th>COMPLETION</th><th>CACHED</th><th>TYPE</th></tr></thead><tbody id="events-body"><tr><td colspan="7" class="table-empty">Import a Grok Usage CSV to view events.</td></tr></tbody></table></div>
-          <div class="table-footer"><span id="table-count">0 events</span><div class="pagination"><button class="button button-small" id="prev-page" type="button" disabled>←</button><span id="page-label">Page 1</span><button class="button button-small" id="next-page" type="button" disabled>→</button></div></div>
-        </article>
-      </section>
-      <footer class="app-footer"><span>AI Usage Dashboard <span class="muted">· MVP</span></span><span><span class="status-dot"></span> Processed locally · No server-side database</span></footer>
-    </main>
-  </div>
-
-  <input type="file" id="csv-file" accept=".csv,text/csv" hidden>
-  <div class="modal-backdrop" id="import-modal" hidden>
-    <section class="import-modal panel" role="dialog" aria-modal="true" aria-labelledby="import-title">
-      <button class="modal-close" id="close-modal" type="button" aria-label="Close">×</button>
-      <div class="import-illustration">↥</div><div class="eyebrow">DATA SOURCE / GROK</div><h2 id="import-title">Import usage data</h2>
-      <p class="modal-copy">Choose a Grok Usage CSV export. The file is parsed in this tab and saved only to this browser's local storage database.</p>
-      <label class="dropzone" id="dropzone" for="csv-file"><span class="upload-icon">⇧</span><strong>Drop your CSV file here</strong><span>or click to browse · CSV format</span></label>
-      <div class="privacy-note"><span class="status-dot"></span><span><strong>Private by design</strong><br>Nothing is uploaded to a server. Clearing browser site data removes the saved dataset.</span></div>
-      <div class="import-error" id="import-error" role="alert" hidden></div>
-      <div class="modal-actions"><button class="button" id="cancel-import" type="button">Cancel</button><button class="button button-primary" id="choose-file" type="button">Choose CSV</button></div>
-    </section>
-  </div>
-  <script type="module" src="./src/app.js"></script>
-</body>
-</html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#10141c"><title>AI Usage Dashboard</title><link rel="stylesheet" href="./styles.css"></head>
+<body><div class="app-shell">
+<aside class="sidebar"><a class="brand" href="./"><span class="brand-mark">A</span><span>AI Usage<span class="muted"> / Insights</span></span></a><div class="side-label">WORKSPACE</div><button class="nav-item active" data-page="dashboard" type="button"><span class="nav-icon">▦</span> Dashboard</button><button class="nav-item" data-page="import" type="button"><span class="nav-icon">↥</span> Import data</button><div class="sidebar-bottom"><span class="status-dot"></span><div><strong>Local workspace</strong><small>Data stays in this browser</small></div></div></aside>
+<main class="main-content"><header class="topbar"><div><div class="eyebrow">OBSERVABILITY / AI COST & USAGE</div><h1 id="page-title">Usage overview</h1></div><div class="top-actions"><span class="privacy-pill"><span class="status-dot"></span> Browser storage only</span><button class="button button-primary" id="header-import" type="button">＋ Import data</button></div></header>
+<section id="dashboard-page" class="page">
+<section class="toolbar panel"><div class="dataset-info"><span class="dataset-icon">▤</span><div><strong id="dataset-name">No data imported yet</strong><small id="dataset-meta">Import a Grok Usage CSV to start analysing your usage</small></div></div><div class="toolbar-controls"><label class="field-label" for="range-select">DATE RANGE</label><select id="range-select" class="select-control"><option value="7d">Last 7 days</option><option value="30d">Last 30 days</option><option value="90d">Last 90 days</option><option value="all" selected>All available time</option><option value="custom">Custom range</option></select><div id="custom-range" class="custom-range" hidden><input type="date" id="date-from" aria-label="Start date"><span>to</span><input type="date" id="date-to" aria-label="End date"><button class="button button-small" id="apply-range" type="button">Apply</button></div></div></section>
+<section class="kpi-grid" aria-label="Usage summary"><article class="kpi-card"><div class="kpi-heading">TOTAL TOKEN USAGE <span class="kpi-symbol violet">▥</span></div><div class="kpi-value" id="kpi-total">—</div><div class="kpi-foot" id="kpi-total-sub">Across selected dates</div></article><article class="kpi-card"><div class="kpi-heading">USAGE EVENTS <span class="kpi-symbol blue">↗</span></div><div class="kpi-value" id="kpi-requests">—</div><div class="kpi-foot" id="kpi-events-sub">Usage records</div></article><article class="kpi-card"><div class="kpi-heading">INPUT TOKENS <span class="kpi-symbol cyan">⇥</span></div><div class="kpi-value" id="kpi-prompt">—</div><div class="kpi-foot">Prompt tokens excluding cache</div></article><article class="kpi-card"><div class="kpi-heading">OUTPUT TOKENS <span class="kpi-symbol green">⇤</span></div><div class="kpi-value" id="kpi-completion">—</div><div class="kpi-foot">Generated completion tokens</div></article><article class="kpi-card"><div class="kpi-heading">CACHED TOKENS <span class="kpi-symbol amber">◈</span></div><div class="kpi-value" id="kpi-cached">—</div><div class="kpi-foot" id="kpi-cache-rate">Cache share —</div></article></section>
+<section class="content-grid"><article class="panel chart-panel"><div class="panel-heading"><div><div class="eyebrow">WHEN IS USAGE HAPPENING?</div><h2>Token usage over time</h2><p class="panel-subtitle">Spot spikes and compare daily usage</p></div><div class="chart-actions"><select id="metric-select" class="select-control compact" aria-label="Chart metric"><option value="total">All tokens</option><option value="prompt">Input tokens</option><option value="completion">Output tokens</option><option value="cached">Cached tokens</option><option value="requests">Usage events</option></select></div></div><div class="chart-legend"><span><i class="legend-dot violet-dot"></i><span id="legend-label">All tokens</span></span><span class="chart-period" id="chart-period">No data</span></div><div class="chart-wrap"><canvas id="usage-chart" aria-label="Daily token usage chart" role="img"></canvas><div id="chart-tooltip" class="chart-tooltip" hidden></div><div id="chart-empty" class="empty-chart">Import a CSV to see when tokens were used.</div></div><div class="chart-footer"><span id="bucket-label">Daily totals</span><span>Hover or tap a point for details</span></div></article>
+<article class="panel breakdown-panel"><div class="panel-heading"><div><div class="eyebrow">WHAT IS USING TOKENS?</div><h2>Usage breakdown</h2><p class="panel-subtitle">Token volume by usage type</p></div></div><div class="donut-area"><div class="donut" id="usage-donut"><div class="donut-center"><strong id="usage-donut-total">—</strong><small>tokens</small></div></div></div><div class="breakdown-list" id="usage-breakdown-list"><div class="empty-small">Usage categories appear here after import.</div></div></article></section>
+<section class="panel product-panel"><div class="panel-heading"><div><div class="eyebrow">WHERE IS USAGE GOING?</div><h2>Usage by product</h2><p class="panel-subtitle">Select a product to inspect usage type, model and daily totals</p></div><span class="table-count-chip" id="product-count">0 products</span></div><div id="product-list" class="product-list"><div class="empty-state"><strong>No product data yet</strong><span>Import a Grok Usage CSV to see which products consume the most tokens.</span></div></div></section>
+<section class="panel table-panel"><div class="panel-heading"><div><div class="eyebrow">EVENT EXPLORER</div><h2>Usage records</h2><p class="panel-subtitle" id="events-subtitle">Individual rows from your imported usage data</p></div><div class="table-tools"><input id="event-search" class="search-input" type="search" placeholder="Search product, model, usage…" aria-label="Search usage records"><button id="export-button" class="button button-small" type="button">Export CSV ↓</button></div></div><div class="table-scroll"><table><thead><tr><th>DATE / TIME</th><th>PRODUCT</th><th>MODEL</th><th>USAGE TYPE</th><th>TOTAL TOKENS</th><th>INPUT</th><th>OUTPUT</th></tr></thead><tbody id="events-body"><tr><td colspan="7" class="table-empty">Import a Grok Usage CSV to view records.</td></tr></tbody></table></div><div class="table-footer"><span id="table-count">0 events</span><div class="pagination"><button class="button button-small" id="prev-page" type="button" disabled>←</button><span id="page-label">Page 1</span><button class="button button-small" id="next-page" type="button" disabled>→</button></div></div></section>
+<footer class="app-footer"><span>AI Usage Dashboard <span class="muted">· Grok MVP</span></span><span><span class="status-dot"></span> Processed locally · No server-side database</span></footer></section>
+<section id="import-page" class="page" hidden><div class="import-intro"><div class="eyebrow">ADD USAGE DATA</div><h2>Bring your usage history together.</h2><p>Import exports from your AI providers. Data is parsed and stored locally in this browser — never uploaded to a server.</p></div><section class="import-config panel"><div class="import-selectors"><label class="form-field"><span>MODEL PROVIDER</span><select id="provider-select" class="select-control"><option value="grok" selected>Grok</option></select><small>More providers can be added here.</small></label><label class="form-field"><span>FILE FORMAT</span><select id="format-select" class="select-control"><option value="csv" selected>CSV</option></select><small>Grok currently supports CSV export.</small></label></div><div class="import-workspace"><div class="upload-column"><div class="section-kicker">STEP 1 · SELECT YOUR EXPORT</div><input type="file" id="csv-file" accept=".csv,text/csv" hidden><label class="dropzone" id="dropzone" for="csv-file" tabindex="0" role="button" aria-label="Choose or drop a Grok Usage CSV file"><span class="upload-icon">↥</span><strong id="dropzone-title">Drop your CSV file here</strong><span id="dropzone-subtitle">or click to browse files</span><span class="file-format-pill">.CSV · GROK USAGE EXPORT</span></label><div class="privacy-note"><span class="status-dot"></span><span><strong>Private by design</strong><br>Your CSV stays on this device. Existing history is preserved when you import another export.</span></div><div class="import-error" id="import-error" role="alert" hidden></div><div class="import-result" id="import-result" hidden></div></div>
+<div class="instructions-column"><div class="section-kicker">STEP 2 · EXPORT FROM GROK</div><h3>How to get your usage CSV</h3><ol class="instruction-list"><li><span>1</span><div><strong>Open your Grok account</strong><p>Sign in to the account whose usage you want to analyse.</p></div></li><li><span>2</span><div><strong>Find the Usage page</strong><p>Open usage or billing usage history in your Grok / xAI account dashboard.</p></div></li><li><span>3</span><div><strong>Export as CSV</strong><p>Download the usage CSV and keep its original header row.</p></div></li><li><span>4</span><div><strong>Drop the file here</strong><p>Import starts automatically. New rows are added and duplicates skipped.</p></div></li></ol><div class="supported-fields"><strong>What we analyse</strong><span>Usage type · Product · Model · Event time · Input / output / cached tokens</span></div></div></div></section><section class="import-history panel"><div><div class="eyebrow">LOCAL DATASET</div><h3>Your imported history</h3><p id="import-history-meta">No usage data saved in this browser yet.</p></div><button class="button" id="back-dashboard" type="button">View dashboard →</button></section><footer class="app-footer"><span>AI Usage Dashboard <span class="muted">· Import</span></span><span><span class="status-dot"></span> Local-only storage</span></footer></section>
+</main></div>
+<div class="detail-backdrop" id="product-detail-backdrop" hidden><section class="detail-drawer panel" role="dialog" aria-modal="true" aria-labelledby="detail-title"><button class="modal-close" id="close-detail" type="button" aria-label="Close product details">×</button><div class="eyebrow">PRODUCT DEEP DIVE</div><h2 id="detail-title">Product usage</h2><p id="detail-subtitle" class="panel-subtitle"></p><div class="detail-kpis" id="detail-kpis"></div><section class="detail-section"><h3>Tokens by usage type</h3><div id="detail-usage-list" class="detail-list"></div></section><section class="detail-section"><h3>Usage by model</h3><div id="detail-model-list" class="detail-list"></div></section><section class="detail-section"><h3>Daily token usage</h3><div id="detail-day-list" class="detail-list"></div></section><button class="button button-primary detail-filter-button" id="view-product-events" type="button">View this product's records</button></section></div>
+<script type="module" src="./src/app.js"></script></body></html>

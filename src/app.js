@@ -2,7 +2,7 @@ import { usageAdapters } from "./adapters/grok-usage-csv.js";
 import { usageStore } from "./storage/usage-store.js";
 
 const $ = s => document.querySelector(s);
-const state = { events: [], sourceName: "", skippedRows: 0, range: "all", custom: null, metric: "total", search: "", page: 1, pageSize: 10, hoveredIndex: -1, selectedProduct: "" };
+const state = { events: [], sourceName: "", skippedRows: 0, range: "all", custom: null, metric: "total", search: "", page: 1, pageSize: 10, hoveredIndex: -1, selectedProduct: "", lastImport: null };
 const compact = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 2 });
 const exact = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
 const fmt = n => compact.format(n || 0), exactFmt = n => exact.format(n || 0);
@@ -107,7 +107,7 @@ function renderImportHistory() { $("#import-history-meta").textContent=state.eve
 function render() {
   const events=activeRange();renderKpis(events);renderUsageBreakdown(events);renderProducts(events);renderChart(events);renderEvents(events);
   $("#dataset-name").textContent=state.sourceName||"No data imported yet";
-  $("#dataset-meta").textContent=state.events.length?state.events.length.toLocaleString()+" saved events · "+new Date(state.events[0].timestamp).toLocaleDateString()+" – "+new Date(state.events[state.events.length-1].timestamp).toLocaleDateString()+(state.skippedRows?" · "+state.skippedRows+" invalid rows in last import":""):"Import a Grok Usage CSV to start analysing your usage";
+  $("#dataset-meta").textContent=state.events.length?state.events.length.toLocaleString()+" saved events · "+new Date(state.events[0].timestamp).toLocaleDateString()+" – "+new Date(state.events[state.events.length-1].timestamp).toLocaleDateString()+(state.skippedRows?" · "+state.skippedRows+" invalid rows in last import":"")+(state.lastImport?" · Last import: +"+state.lastImport.added+" new, "+state.lastImport.duplicates+" duplicates ignored":""):"Import a Grok Usage CSV to start analysing your usage";
   renderImportHistory();
 }
 async function importFile(file) {
@@ -117,7 +117,7 @@ async function importFile(file) {
     const source=await file.text(),adapter=usageAdapters.find(a=>a.supports(file.name,source.slice(0,12000)));
     if(!adapter)throw new Error("This does not look like a supported Grok Usage CSV. Expected Event Time, Product and Usage columns.");
     const result=adapter.parse(source),saved=await usageStore.save({sourceName:file.name,adapterId:adapter.id,importedAt:Date.now(),sourceRows:result.sourceRows,skippedRows:result.skippedRows,events:result.events});
-    state.events=saved.events;state.sourceName=file.name;state.skippedRows=result.skippedRows;state.range="all";state.page=1;state.search="";
+    state.events=saved.events;state.sourceName=file.name;state.skippedRows=result.skippedRows;state.lastImport={added:saved.added,duplicates:saved.duplicates,skipped:result.skippedRows};state.range="all";state.page=1;state.search="";
     $("#range-select").value="all";$("#event-search").value="";
     $("#import-result").innerHTML="<strong>Import complete</strong><br>Added <b>"+saved.added.toLocaleString()+"</b> new events · Ignored <b>"+saved.duplicates.toLocaleString()+"</b> duplicates · Skipped <b>"+result.skippedRows.toLocaleString()+"</b> invalid rows.<br>Total saved history: <b>"+saved.events.length.toLocaleString()+"</b> events.";
     $("#import-result").hidden=false;$("#dropzone-title").textContent="Import another CSV";$("#dropzone-subtitle").textContent="Drop a new export or click to choose a file";

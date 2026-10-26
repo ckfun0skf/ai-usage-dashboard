@@ -26,10 +26,13 @@ function switchPage(page) {
 }
 function activeRange() {
   if (!state.events.length) return [];
-  let from = -Infinity, to = Infinity; const latest = state.events[state.events.length - 1].timestamp;
-  if (state.range === "7d") from = latest - 7 * 86400000;
-  if (state.range === "30d") from = latest - 30 * 86400000;
-  if (state.range === "90d") from = latest - 90 * 86400000;
+  let from = -Infinity, to = Infinity;
+  const now = Date.now();
+  if (state.range === "24h") from = now - 24 * 60 * 60 * 1000;
+  if (state.range === "48h") from = now - 48 * 60 * 60 * 1000;
+  if (state.range === "7d") from = now - 7 * 86400000;
+  if (state.range === "30d") from = now - 30 * 86400000;
+  if (state.range === "90d") from = now - 90 * 86400000;
   if (state.range === "custom" && state.custom) { from = state.custom.from; to = state.custom.to; }
   return state.events.filter(e => e.timestamp >= from && e.timestamp <= to);
 }

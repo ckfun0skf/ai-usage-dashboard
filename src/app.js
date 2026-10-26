@@ -2,7 +2,7 @@ import { usageAdapters } from "./adapters/grok-usage-csv.js";
 import { usageStore } from "./storage/usage-store.js";
 
 const $ = s => document.querySelector(s);
-const state = { events: [], sourceName: "", skippedRows: 0, range: "all", custom: null, metric: "total", search: "", page: 1, pageSize: 10, hoveredIndex: -1, selectedProduct: "", lastImport: null };
+const state = { events: [], sourceName: "", skippedRows: 0, range: "all", custom: null, metric: "total", search: "", page: 1, pageSize: 10, hoveredIndex: -1, selectedProduct: "", selectedUser: "", detailKind: "product", maskEmails: false, lastImport: null };
 const compact = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 2 });
 const exact = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
 const fmt = n => compact.format(n || 0), exactFmt = n => exact.format(n || 0);
@@ -11,6 +11,10 @@ const colors = ["#a78bfa","#60a5fa","#48d9d1","#f5bd61","#4adea2","#f472b6","#fb
 const metrics = { total:"All tokens", prompt:"Input tokens", completion:"Output tokens", cached:"Cached tokens", requests:"Usage events" };
 const productOf = e => e.product || "Grok (unspecified product)";
 const usageOf = e => e.usageType || "Uncategorised";
+const userOf = e => e.userEmail?.trim() || "Unknown user";
+const modelMeta = model => { const value=String(model||"Grok (unspecified)"); const grok=/grok|xai|x\.ai/i.test(value); return {label:value,icon:grok?"✳":value.trim().slice(0,2).toUpperCase(),kind:grok?"grok":"generic"}; };
+const modelBadge = model => { const m=modelMeta(model); return '<span class="model-logo '+m.kind+'" aria-hidden="true">'+safe(m.icon)+'</span>'; };
+const displayUser = email => { if(!state.maskEmails||email==="Unknown user")return email; const parts=email.split("@"); return parts.length===2?parts[0].slice(0,1)+"•••@"+parts[1]:"••••••"; };
 function switchPage(page) {
   $("#dashboard-page").hidden = page !== "dashboard"; $("#import-page").hidden = page !== "import";
   $("#page-title").textContent = page === "dashboard" ? "Usage overview" : "Import usage data";
@@ -51,6 +55,23 @@ function renderUsageBreakdown(events) {
   const slices = groups.map((g,i) => { const start = angle; angle += total ? g.summary.total / total * 360 : 0; return colors[i % colors.length] + " " + start + "deg " + angle + "deg"; });
   $("#usage-donut").style.background = total ? "conic-gradient(" + slices.join(",") + ")" : "conic-gradient(#30394a 0deg 360deg)";
   $("#usage-breakdown-list").innerHTML = groups.length ? groups.map((g,i) => '<div class="usage-breakdown-row"><span class="breakdown-name"><i class="legend-dot" style="background:' + colors[i % colors.length] + '"></i>' + safe(g.key) + '</span><strong>' + exactFmt(g.summary.total) + '</strong><small>' + (total ? g.summary.total / total * 100 : 0).toFixed(1) + '%</small></div>').join("") : '<div class="empty-small">No usage categories found in this date range.</div>';
+}
+function renderModels(events) {
+  const groups=groupBy(events,e=>e.model||"Grok (unspecified)").sort((a,b)=>b.summary.total-a.summary.total);
+  const total=groups.reduce((s,g)=>s+g.summary.total,0);
+  $("#model-count").textContent=groups.length+" model"+(groups.length===1?"":"s");
+  $("#model-list").innerHTML=groups.length?groups.map(g=>{const meta=modelMeta(g.key),share=total?g.summary.total/total*100:0;return '<div class="model-row"><div class="model-identity">'+modelBadge(g.key)+'<span><strong>'+safe(meta.label)+'</strong><small>'+safe(meta.kind==="grok"?"Grok · xAI":"Model provider")+' · '+g.events.length.toLocaleString()+' events</small></span></div><div class="model-usage-bar-wrap"><div class="model-usage-bar"><span style="width:'+share.toFixed(2)+'%"></span></div><div class="model-usage-meta">'+share.toFixed(1)+'% of selected tokens</div></div><div class="model-total"><strong>'+exactFmt(g.summary.total)+'</strong><small>tokens</small></div></div>';}).join(""):'<div class="empty-small">Import usage data to see token totals by model.</div>';
+}
+function renderUsers(events) {
+  const groups=groupBy(events,userOf).sort((a,b)=>b.summary.total-a.summary.total);
+  const total=groups.reduce((s,g)=>s+g.summary.total,0);
+  $("#user-list").innerHTML=groups.length?groups.map(g=>{
+    const share=total?g.summary.total/total*100:0;
+    const products=groupBy(g.events,productOf).sort((a,b)=>b.summary.total-a.summary.total);
+    const types=groupBy(g.events,usageOf).sort((a,b)=>b.summary.total-a.summary.total);
+    return '<button type="button" class="user-row user-row-button" data-user="'+safe(g.key)+'"><span class="user-identity"><span class="user-avatar">'+safe(g.key==="Unknown user"?"?":g.key.slice(0,1).toUpperCase())+'</span><span><strong>'+safe(displayUser(g.key))+'</strong><small>'+g.summary.requests.toLocaleString()+' usage events</small></span></span><span class="user-usage-bar-wrap"><span class="user-usage-bar"><span style="width:'+share.toFixed(2)+'%"></span></span><span class="model-usage-meta">'+share.toFixed(1)+'% of selected tokens</span></span><span class="user-top-use"><strong>'+safe(products[0]?.key||"No product")+'</strong><small>Top product · '+safe(types[0]?.key||"No usage type")+'</small></span><span class="user-total"><strong>'+exactFmt(g.summary.total)+'</strong><small>tokens</small></span><span class="user-arrow">›</span></button>';
+  }).join(""):'<div class="empty-state"><strong>No user data yet</strong><span>Import a CSV that includes the User Email column to compare users.</span></div>';
+  $("#user-list").querySelectorAll("[data-user]").forEach(button=>button.addEventListener("click",()=>openUser(button.dataset.user,events)));
 }
 function renderProducts(events) {
   const groups = groupBy(events, productOf).sort((a,b) => b.summary.total - a.summary.total);
@@ -97,15 +118,15 @@ function renderChart(events) {
   canvas._points=points;
 }
 function renderEvents(events) {
-  const q=state.search.toLowerCase(), filtered=events.filter(e=>[productOf(e),e.model,usageOf(e),e.chargeCategory,new Date(e.timestamp).toISOString()].join(" ").toLowerCase().includes(q));
+  const q=state.search.toLowerCase(), filtered=events.filter(e=>[productOf(e),e.model,userOf(e),usageOf(e),e.chargeCategory,new Date(e.timestamp).toISOString()].join(" ").toLowerCase().includes(q));
   const pages=Math.max(1,Math.ceil(filtered.length/state.pageSize));state.page=Math.min(state.page,pages);
   const rows=filtered.slice((state.page-1)*state.pageSize,state.page*state.pageSize);
-  $("#events-body").innerHTML=rows.length?rows.slice().reverse().map(e=>'<tr><td>'+safe(new Date(e.timestamp).toLocaleString())+'</td><td>'+safe(productOf(e))+'</td><td><span class="model-chip">'+safe(e.model)+'</span></td><td><span class="type-chip">'+safe(usageOf(e))+'</span></td><td class="num">'+exactFmt(e.total)+'</td><td class="num">'+exactFmt(e.prompt+e.cached+e.cacheWrite)+'</td><td class="num">'+exactFmt(e.completion)+'</td></tr>').join(""):'<tr><td colspan="7" class="table-empty">No usage records match this view.</td></tr>';
+  $("#events-body").innerHTML=rows.length?rows.slice().reverse().map(e=>'<tr><td>'+safe(new Date(e.timestamp).toLocaleString())+'</td><td>'+safe(productOf(e))+'</td><td><span class="model-chip">'+modelBadge(e.model)+safe(e.model)+'</span></td><td>'+safe(displayUser(userOf(e)))+'</td><td><span class="type-chip">'+safe(usageOf(e))+'</span></td><td class="num">'+exactFmt(e.total)+'</td><td class="num">'+exactFmt(e.prompt+e.cached+e.cacheWrite)+'</td><td class="num">'+exactFmt(e.completion)+'</td></tr>').join(""):'<tr><td colspan="8" class="table-empty">No usage records match this view.</td></tr>';
   $("#table-count").textContent=filtered.length.toLocaleString()+" events";$("#page-label").textContent="Page "+state.page+" of "+pages;$("#prev-page").disabled=state.page<=1;$("#next-page").disabled=state.page>=pages;$("#events-subtitle").textContent=filtered.length.toLocaleString()+" records in selected date range";
 }
 function renderImportHistory() { $("#import-history-meta").textContent=state.events.length?state.events.length.toLocaleString()+" events saved locally · Latest file: "+(state.sourceName||"Grok Usage CSV"):"No usage data saved in this browser yet."; }
 function render() {
-  const events=activeRange();renderKpis(events);renderUsageBreakdown(events);renderProducts(events);renderChart(events);renderEvents(events);
+  const events=activeRange();renderKpis(events);renderUsageBreakdown(events);renderModels(events);renderProducts(events);renderUsers(events);renderChart(events);renderEvents(events);
   $("#dataset-name").textContent=state.sourceName||"No data imported yet";
   $("#dataset-meta").textContent=state.events.length?state.events.length.toLocaleString()+" saved events · "+new Date(state.events[0].timestamp).toLocaleDateString()+" – "+new Date(state.events[state.events.length-1].timestamp).toLocaleDateString()+(state.skippedRows?" · "+state.skippedRows+" invalid rows in last import":"")+(state.lastImport?" · Last import: +"+state.lastImport.added+" new, "+state.lastImport.duplicates+" duplicates ignored":""):"Import a Grok Usage CSV to start analysing your usage";
   renderImportHistory();
@@ -125,9 +146,9 @@ async function importFile(file) {
   } catch(error) { $("#import-error").textContent=error.message||"Could not import this file.";$("#import-error").hidden=false;$("#dropzone-title").textContent="Drop your CSV file here";$("#dropzone-subtitle").textContent="or click to browse files"; }
 }
 function openProduct(product, events=activeRange()) {
-  state.selectedProduct=product;const subset=events.filter(e=>productOf(e)===product),sum=summarize(subset);
+  state.detailKind="product";state.selectedProduct=product;const subset=events.filter(e=>productOf(e)===product),sum=summarize(subset);
   const days=groupBy(subset,e=>{const d=new Date(e.timestamp);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}).sort((a,b)=>b.key.localeCompare(a.key));
-  $("#detail-title").textContent=product;$("#detail-subtitle").textContent=subset.length.toLocaleString()+" usage events in selected date range";
+  $("#detail-eyebrow").textContent="PRODUCT DEEP DIVE";$("#detail-title").textContent=product;$("#detail-subtitle").textContent=subset.length.toLocaleString()+" usage events in selected date range";$("#detail-model-heading").textContent="Usage by model";$("#detail-day-heading").textContent="Daily token usage";$("#view-product-events").textContent="View this product records";
   $("#detail-kpis").innerHTML='<div class="detail-kpi"><small>Total tokens</small><strong>'+exactFmt(sum.total)+'</strong></div><div class="detail-kpi"><small>Usage events</small><strong>'+exactFmt(sum.requests)+'</strong></div><div class="detail-kpi"><small>Input + cache</small><strong>'+fmt(sum.prompt+sum.cached+sum.cacheWrite)+'</strong></div><div class="detail-kpi"><small>Output tokens</small><strong>'+fmt(sum.completion)+'</strong></div>';
   function list(groups){return groups.length?groups.map(g=>'<div class="detail-list-row"><span>'+safe(g.key)+'</span><strong>'+exactFmt(g.summary.total)+' tokens</strong></div>').join(""):'<div class="empty-small">No data in this range.</div>';}
   $("#detail-usage-list").innerHTML=list(groupBy(subset,usageOf).sort((a,b)=>b.summary.total-a.summary.total));
@@ -135,10 +156,24 @@ function openProduct(product, events=activeRange()) {
   $("#detail-day-list").innerHTML=days.slice(0,14).map(d=>'<div class="detail-list-row"><span>'+safe(d.key)+' · '+d.summary.requests+' events</span><strong>'+exactFmt(d.summary.total)+' tokens</strong></div>').join("")||'<div class="empty-small">No daily usage in this range.</div>';
   $("#product-detail-backdrop").hidden=false;
 }
+function openUser(user, events=activeRange()) {
+  state.detailKind="user";state.selectedUser=user;
+  const subset=events.filter(e=>userOf(e)===user),sum=summarize(subset);
+  const products=groupBy(subset,productOf).sort((a,b)=>b.summary.total-a.summary.total);
+  const days=groupBy(subset,e=>{const d=new Date(e.timestamp);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}).sort((a,b)=>b.key.localeCompare(a.key));
+  $("#detail-eyebrow").textContent="USER DEEP DIVE";$("#detail-title").textContent=displayUser(user);$("#detail-subtitle").textContent=subset.length.toLocaleString()+" usage events · "+exactFmt(sum.total)+" tokens";
+  $("#detail-kpis").innerHTML='<div class="detail-kpi"><small>Total tokens</small><strong>'+exactFmt(sum.total)+'</strong></div><div class="detail-kpi"><small>Usage events</small><strong>'+exactFmt(sum.requests)+'</strong></div><div class="detail-kpi"><small>Input + cache</small><strong>'+fmt(sum.prompt+sum.cached+sum.cacheWrite)+'</strong></div><div class="detail-kpi"><small>Output tokens</small><strong>'+fmt(sum.completion)+'</strong></div>';
+  const list=groups=>groups.length?groups.map(g=>'<div class="detail-list-row"><span>'+safe(g.key)+'</span><strong>'+exactFmt(g.summary.total)+' tokens</strong></div>').join(""):'<div class="empty-small">No data in this range.</div>';
+  $("#detail-usage-list").innerHTML=list(groupBy(subset,usageOf).sort((a,b)=>b.summary.total-a.summary.total));
+  $("#detail-model-list").innerHTML=list(products);
+  $("#detail-day-list").innerHTML=days.slice(0,14).map(d=>'<div class="detail-list-row"><span>'+safe(d.key)+' · '+d.summary.requests+' events</span><strong>'+exactFmt(d.summary.total)+' tokens</strong></div>').join("")||'<div class="empty-small">No daily usage in this range.</div>';
+  $("#detail-model-heading").textContent="Usage by product";$("#detail-day-heading").textContent="Daily token usage";$("#view-product-events").textContent="View this user records";
+  $("#product-detail-backdrop").hidden=false;
+}
 function exportCsv() {
-  const events=activeRange(),headers=["Event Time","Product","Model","Usage Type","Total Tokens","Prompt Tokens","Completion Tokens","Cached Prompt Tokens","Cache Write Tokens","Cost","Currency"];
+  const events=activeRange(),headers=["Event Time","Product","Model","User Email","Usage Type","Total Tokens","Prompt Tokens","Completion Tokens","Cached Prompt Tokens","Cache Write Tokens","Cost","Currency"];
   const quote=v=>'"'+String(v??"").replace(/"/g,'""')+'"';
-  const rows=events.map(e=>[new Date(e.timestamp).toISOString(),productOf(e),e.model,usageOf(e),e.total,e.prompt,e.completion,e.cached,e.cacheWrite,e.cost,e.currency]);
+  const rows=events.map(e=>[new Date(e.timestamp).toISOString(),productOf(e),e.model,userOf(e),usageOf(e),e.total,e.prompt,e.completion,e.cached,e.cacheWrite,e.cost,e.currency]);
   const blob=new Blob([[headers,...rows].map(row=>row.map(quote).join(",")).join("\r\n")],{type:"text/csv;charset=utf-8"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="ai-usage-dashboard-export.csv";a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 document.querySelectorAll(".nav-item[data-page]").forEach(el=>el.addEventListener("click",()=>switchPage(el.dataset.page)));
@@ -158,7 +193,8 @@ $("#usage-chart").addEventListener("mousemove",e=>{const points=e.currentTarget.
 $("#usage-chart").addEventListener("click",e=>{const points=e.currentTarget._points||[];if(!points.length)return;const x=e.clientX-e.currentTarget.getBoundingClientRect().left;state.hoveredIndex=points.reduce((best,p,i)=>Math.abs(p.x-x)<Math.abs(points[best].x-x)?i:best,0);renderChart(activeRange());});
 $("#usage-chart").addEventListener("mouseleave",()=>{state.hoveredIndex=-1;renderChart(activeRange());});
 $("#close-detail").addEventListener("click",()=>$("#product-detail-backdrop").hidden=true);$("#product-detail-backdrop").addEventListener("click",e=>{if(e.target===$("#product-detail-backdrop"))$("#product-detail-backdrop").hidden=true;});
-$("#view-product-events").addEventListener("click",()=>{state.search=state.selectedProduct;$("#event-search").value=state.search;state.page=1;$("#product-detail-backdrop").hidden=true;renderEvents(activeRange());$("#events-subtitle").textContent="Filtered to "+state.selectedProduct;document.querySelector(".table-panel").scrollIntoView({behavior:"smooth",block:"start"});});
+$("#view-product-events").addEventListener("click",()=>{const target=state.detailKind==="user"?state.selectedUser:state.selectedProduct;state.search=target;$("#event-search").value=target;state.page=1;$("#product-detail-backdrop").hidden=true;renderEvents(activeRange());$("#events-subtitle").textContent="Filtered to "+displayUser(target);document.querySelector(".table-panel").scrollIntoView({behavior:"smooth",block:"start"});});
+$("#mask-emails").addEventListener("change",e=>{state.maskEmails=e.target.checked;renderUsers(activeRange());renderEvents(activeRange());if(!$("#product-detail-backdrop").hidden&&state.detailKind==="user")openUser(state.selectedUser);});
 window.addEventListener("resize",()=>renderChart(activeRange()));
 try{const saved=await usageStore.load();if(saved?.events?.length){state.events=saved.events;state.sourceName=saved.sourceName||"Saved usage history";state.skippedRows=saved.skippedRows||0;state.lastImport=saved.lastImport||null;state.range="all";}}catch(error){console.warn("Browser storage unavailable:",error);}
 render();

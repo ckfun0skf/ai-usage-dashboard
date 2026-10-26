@@ -31,7 +31,7 @@ export const grokUsageCsvAdapter = {
       const product = row.Product?.trim() || "Grok (unspecified product)";
       const model = row.Model?.trim() || "Grok (unspecified)";
       const usageType = row["Usage Type"]?.trim() || "Uncategorised";
-      const id = row["Billing Item ID"]?.trim() || "grok-" + timestamp + "-" + encodeURIComponent([product, model, usageType, tokens.prompt, tokens.completion, tokens.cached, tokens.cacheWrite, row["Pricing Contracted"] || ""].join("|"));
+      const id = row["Billing Item ID"]?.trim() || "grok-" + timestamp + "-" + encodeURIComponent([model, usageType, tokens.prompt, tokens.completion, tokens.cached, tokens.cacheWrite, row["Pricing Contracted"] || ""].join("|"));
       events.push({ id, timestamp, product, model, usageType, chargeCategory: row["Charge Category"] || "usage", currency: row["Pricing Currency"] || "USD", cost: parseNumber(row["Pricing Contracted"]), ...tokens, total: Object.values(tokens).reduce((sum, value) => sum + value, 0), rawUsage: usage });
     });
     if (!events.length) throw new Error("No valid Grok usage rows found. Check the CSV format and Product column.");

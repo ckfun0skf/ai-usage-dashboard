@@ -148,7 +148,7 @@ async function importFile(file) {
 function openProduct(product, events=activeRange()) {
   state.detailKind="product";state.selectedProduct=product;const subset=events.filter(e=>productOf(e)===product),sum=summarize(subset);
   const days=groupBy(subset,e=>{const d=new Date(e.timestamp);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}).sort((a,b)=>b.key.localeCompare(a.key));
-  $("#detail-eyebrow").textContent="PRODUCT DEEP DIVE";$("#detail-title").textContent=product;$("#detail-subtitle").textContent=subset.length.toLocaleString()+" usage events in selected date range";$("#detail-model-heading").textContent="Usage by model";$("#detail-day-heading").textContent="Daily token usage";$("#view-product-events").textContent="View this product records";
+  $("#detail-eyebrow").textContent="PRODUCT DEEP DIVE";$("#detail-title").textContent=product;$("#detail-subtitle").textContent=subset.length.toLocaleString()+" usage events in selected date range";$("#detail-model-heading").textContent="Usage by model";$("#detail-day-heading").textContent="Daily token usage";$("#view-product-events").textContent="View this product’s records";
   $("#detail-kpis").innerHTML='<div class="detail-kpi"><small>Total tokens</small><strong>'+exactFmt(sum.total)+'</strong></div><div class="detail-kpi"><small>Usage events</small><strong>'+exactFmt(sum.requests)+'</strong></div><div class="detail-kpi"><small>Input + cache</small><strong>'+fmt(sum.prompt+sum.cached+sum.cacheWrite)+'</strong></div><div class="detail-kpi"><small>Output tokens</small><strong>'+fmt(sum.completion)+'</strong></div>';
   function list(groups){return groups.length?groups.map(g=>'<div class="detail-list-row"><span>'+safe(g.key)+'</span><strong>'+exactFmt(g.summary.total)+' tokens</strong></div>').join(""):'<div class="empty-small">No data in this range.</div>';}
   $("#detail-usage-list").innerHTML=list(groupBy(subset,usageOf).sort((a,b)=>b.summary.total-a.summary.total));
@@ -167,7 +167,7 @@ function openUser(user, events=activeRange()) {
   $("#detail-usage-list").innerHTML=list(groupBy(subset,usageOf).sort((a,b)=>b.summary.total-a.summary.total));
   $("#detail-model-list").innerHTML=list(products);
   $("#detail-day-list").innerHTML=days.slice(0,14).map(d=>'<div class="detail-list-row"><span>'+safe(d.key)+' · '+d.summary.requests+' events</span><strong>'+exactFmt(d.summary.total)+' tokens</strong></div>').join("")||'<div class="empty-small">No daily usage in this range.</div>';
-  $("#detail-model-heading").textContent="Usage by product";$("#detail-day-heading").textContent="Daily token usage";$("#view-product-events").textContent="View this user records";
+  $("#detail-model-heading").textContent="Usage by product";$("#detail-day-heading").textContent="Daily token usage";$("#view-product-events").textContent="View this user’s records";
   $("#product-detail-backdrop").hidden=false;
 }
 function exportCsv() {

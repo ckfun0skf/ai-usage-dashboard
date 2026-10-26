@@ -12,7 +12,8 @@ const metrics = { total:"All tokens", prompt:"Input tokens", completion:"Output 
 const productOf = e => e.product || "Grok (unspecified product)";
 const usageOf = e => e.usageType || "Uncategorised";
 const userOf = e => e.userEmail?.trim() || "Unknown user";
-const modelMeta = model => { const value=String(model||"Grok (unspecified)"); const grok=/grok|xai|x\.ai/i.test(value); return {label:value,icon:grok?"✳":value.trim().slice(0,2).toUpperCase(),kind:grok?"grok":"generic"}; };
+const MODEL_REGISTRY = [{ id:"grok", match:/grok|xai|x\\.ai/i, provider:"xAI", icon:"✳", kind:"grok" }];
+const modelMeta = model => { const value=String(model||"Grok (unspecified)"); const config=MODEL_REGISTRY.find(item=>item.match.test(value)); return {label:value,icon:config?.icon||value.trim().slice(0,2).toUpperCase(),kind:config?.kind||"generic",provider:config?.provider||"Model provider"}; };
 const modelBadge = model => { const m=modelMeta(model); return '<span class="model-logo '+m.kind+'" aria-hidden="true">'+safe(m.icon)+'</span>'; };
 const displayUser = email => { if(!state.maskEmails||email==="Unknown user")return email; const parts=email.split("@"); return parts.length===2?parts[0].slice(0,1)+"•••@"+parts[1]:"••••••"; };
 function switchPage(page) {
@@ -60,7 +61,7 @@ function renderModels(events) {
   const groups=groupBy(events,e=>e.model||"Grok (unspecified)").sort((a,b)=>b.summary.total-a.summary.total);
   const total=groups.reduce((s,g)=>s+g.summary.total,0);
   $("#model-count").textContent=groups.length+" model"+(groups.length===1?"":"s");
-  $("#model-list").innerHTML=groups.length?groups.map(g=>{const meta=modelMeta(g.key),share=total?g.summary.total/total*100:0;return '<div class="model-row"><div class="model-identity">'+modelBadge(g.key)+'<span><strong>'+safe(meta.label)+'</strong><small>'+safe(meta.kind==="grok"?"Grok · xAI":"Model provider")+' · '+g.events.length.toLocaleString()+' events</small></span></div><div class="model-usage-bar-wrap"><div class="model-usage-bar"><span style="width:'+share.toFixed(2)+'%"></span></div><div class="model-usage-meta">'+share.toFixed(1)+'% of selected tokens</div></div><div class="model-total"><strong>'+exactFmt(g.summary.total)+'</strong><small>tokens</small></div></div>';}).join(""):'<div class="empty-small">Import usage data to see token totals by model.</div>';
+  $("#model-list").innerHTML=groups.length?groups.map(g=>{const meta=modelMeta(g.key),share=total?g.summary.total/total*100:0;return '<div class="model-row"><div class="model-identity">'+modelBadge(g.key)+'<span><strong>'+safe(meta.label)+'</strong><small>'+safe(meta.provider)+' · '+g.events.length.toLocaleString()+' events</small></span></div><div class="model-usage-bar-wrap"><div class="model-usage-bar"><span style="width:'+share.toFixed(2)+'%"></span></div><div class="model-usage-meta">'+share.toFixed(1)+'% of selected tokens</div></div><div class="model-total"><strong>'+exactFmt(g.summary.total)+'</strong><small>tokens</small></div></div>';}).join(""):'<div class="empty-small">Import usage data to see token totals by model.</div>';
 }
 function renderUsers(events) {
   const groups=groupBy(events,userOf).sort((a,b)=>b.summary.total-a.summary.total);

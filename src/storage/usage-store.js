@@ -41,7 +41,7 @@ export const usageStore = {
         // without counting the same usage event twice.
         const existingEvent = byId.get(event.id);
         const enriched = { ...existingEvent };
-        for (const field of ["product", "model", "usageType", "chargeCategory", "currency", "rawUsage"]) {
+        for (const field of ["product", "model", "userEmail", "usageType", "chargeCategory", "currency", "rawUsage"]) {
           if ((enriched[field] === undefined || enriched[field] === null || enriched[field] === "") && event[field] !== undefined && event[field] !== null && event[field] !== "") enriched[field] = event[field];
         }
         byId.set(event.id, enriched);

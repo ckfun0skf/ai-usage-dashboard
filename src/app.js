@@ -151,6 +151,14 @@ function drawDetailChart(events) {
   const ticks=Math.min(5,pts.length);ctx.fillStyle="#8290a8";ctx.textAlign="center";ctx.textBaseline="top";
   for(let i=0;i<ticks;i++){const p=pts[Math.round(i*(pts.length-1)/Math.max(ticks-1,1))];ctx.fillText(new Date(p.b.timestamp).toLocaleDateString(undefined,{month:"short",day:"numeric"}),p.x,rect.height-pad.bottom+8);}
 }
+function initScrollAnimations() {
+  const targets=document.querySelectorAll(".chart-panel,.breakdown-panel,.model-panel,.product-panel,.user-panel,.explorer-chart-panel,.detail-chart-section");
+  if(!("IntersectionObserver" in window)){targets.forEach(el=>el.classList.add("is-visible"));return;}
+  const observer=new IntersectionObserver(entries=>entries.forEach(entry=>{
+    if(entry.isIntersecting){entry.target.classList.add("is-visible");observer.unobserve(entry.target);}
+  }),{threshold:.12,rootMargin:"0px 0px -35px 0px"});
+  targets.forEach((el,index)=>{el.classList.add("scroll-reveal");el.style.setProperty("--reveal-delay",Math.min(index%4,3)*70+"ms");observer.observe(el);});
+}
 function render() {
   const events=activeRange();renderKpis(events);renderUsageBreakdown(events);renderModels(events);renderProducts(events);renderUsers(events);renderChart(events);renderEvents(events);
   $("#dataset-name").textContent=state.sourceName||"No data imported yet";
@@ -222,6 +230,7 @@ $("#clear-data").addEventListener("click",async()=>{
     $("#dropzone-title").textContent="Drop your CSV file here";$("#dropzone-subtitle").textContent="or click to browse files";
     $("#product-detail-backdrop").hidden=true;
     render();
+initScrollAnimations();
   }catch(error){
     window.alert("Could not clear this app’s saved data: "+(error?.message||"Unknown storage error"));
   }finally{button.disabled=false;}

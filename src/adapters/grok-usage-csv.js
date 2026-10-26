@@ -34,7 +34,7 @@ export const grokUsageCsvAdapter = {
       catch { errors.push(index + 2); return; }
       const tokens = Object.fromEntries(Object.entries(TOKEN_FIELDS).map(([key, field]) => [key, parseNumber(usage[field])]));
       events.push({
-        id: row["Billing Item ID"] || `grok-${timestamp}-${index}`,
+        id: row["Billing Item ID"]?.trim() || `grok-${timestamp}-${encodeURIComponent([row.Model?.trim() || "", row["Usage Type"] || "", tokens.prompt, tokens.completion, tokens.cached, tokens.cacheWrite, row["Pricing Contracted"] || ""].join("|"))}`,
         timestamp,
         model: row.Model?.trim() || "Grok (unspecified)",
         usageType: row["Usage Type"] || "unknown",

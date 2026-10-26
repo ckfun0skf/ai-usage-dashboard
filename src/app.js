@@ -2,7 +2,7 @@ import { usageAdapters } from "./adapters/grok-usage-csv.js";
 import { usageStore } from "./storage/usage-store.js";
 
 const $ = selector => document.querySelector(selector);
-const state = { events: [], sourceName: "", sourceRows: 0, skippedRows: 0, range: "7d", custom: null, metric: "total", search: "", page: 1, pageSize: 10, hoveredIndex: -1 };
+const state = { events: [], sourceName: "", sourceRows: 0, skippedRows: 0, range: "7d", custom: null, metric: "total", search: "", page: 1, pageSize: 10, hoveredIndex: -1, lastImport: null };
 const numberFormat = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 2 });
 const fullNumber = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
 const dateFormat = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
@@ -143,7 +143,7 @@ function render() {
   const events = activeRange();
   renderKpis(events); renderBreakdown(events); renderChart(events); renderEvents(events);
   $("#dataset-name").textContent = state.sourceName || "No dataset loaded";
-  $("#dataset-meta").textContent = state.events.length ? `${state.events.length.toLocaleString()} events · ${new Date(state.events[0].timestamp).toLocaleDateString()} – ${new Date(state.events[state.events.length - 1].timestamp).toLocaleDateString()}${state.skippedRows ? ` · ${state.skippedRows} invalid rows skipped` : ""}` : "Import a Grok Usage CSV to begin";
+  $("#dataset-meta").textContent = state.events.length ? `${state.events.length.toLocaleString()} events · ${new Date(state.events[0].timestamp).toLocaleDateString()} – ${new Date(state.events[state.events.length - 1].timestamp).toLocaleDateString()}${state.skippedRows ? ` · ${state.skippedRows} invalid rows skipped` : ""}${state.lastImport ? ` · Last import: +${state.lastImport.added} new, ${state.lastImport.duplicates} duplicates ignored` : ""}` : "Import a Grok Usage CSV to begin";
 }
 
 async function importFile(file) {
@@ -155,8 +155,10 @@ async function importFile(file) {
     if (!adapter) throw new Error("Unsupported file. The first release accepts Grok Usage CSV exports with Event Time, Product and Usage columns.");
     const result = adapter.parse(text);
     const dataset = { sourceName: file.name, adapterId: adapter.id, importedAt: Date.now(), sourceRows: result.sourceRows, skippedRows: result.skippedRows, events: result.events };
-    await usageStore.save(dataset);
-    state.events = result.events; state.sourceName = file.name; state.sourceRows = result.sourceRows; state.skippedRows = result.skippedRows; state.range = "all"; state.page = 1;
+    const datasetResult = await usageStore.save(dataset);
+    state.events = datasetResult.events; state.sourceName = file.name; state.sourceRows = datasetResult.sourceRows; state.skippedRows = result.skippedRows;
+    state.lastImport = { added: datasetResult.added, duplicates: datasetResult.duplicates, received: result.events.length, skippedRows: result.skippedRows };
+    state.range = "all"; state.page = 1;
     $("#range-select").value = "all"; $("#custom-range").hidden = true;
     hideModal(); render();
   } catch (error) { setError(error.message || "Could not import this file."); }

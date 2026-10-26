@@ -65,7 +65,6 @@ function renderBreakdown(events) {
   $("#breakdown-donut").style.background = sum.total ? `conic-gradient(${segments.join(",")})` : "conic-gradient(#30394a 0deg 360deg)";
   for (const [key, label, value] of values) {
     $(`#break-${key}`).textContent = format(value);
-    $(`#pct-${key}`).textContent = `${sum.total ? value / sum.total * 100 : 0 .toFixed?.(1) || "0.0"}%`;
     // Keep the percentage readable even when no events exist.
     $(`#pct-${key}`).textContent = `${(sum.total ? value / sum.total * 100 : 0).toFixed(1)}%`;
   }

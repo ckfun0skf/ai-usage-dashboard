@@ -206,6 +206,7 @@ function openUser(user, events=activeRange()) {
   drawDetailChart(subset);
   $("#detail-model-heading").textContent="Usage by product";$("#detail-day-heading").textContent="Daily token usage";$("#view-product-events").textContent="View this user’s records";
   $("#product-detail-backdrop").hidden=false;
+  requestAnimationFrame(()=>drawDetailChart(subset));
 }
 function exportCsv() {
   const events=activeRange(),headers=["Event Time","Product","Model","User Email","Usage Type","Total Tokens","Prompt Tokens","Completion Tokens","Cached Prompt Tokens","Cache Write Tokens","Cost","Currency"];

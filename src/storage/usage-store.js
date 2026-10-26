@@ -35,7 +35,18 @@ export const usageStore = {
     let added = 0;
     let duplicates = 0;
     for (const event of dataset.events) {
-      if (byId.has(event.id)) { duplicates++; continue; }
+      if (byId.has(event.id)) {
+        duplicates++;
+        // Re-importing an older export can enrich fields introduced by a newer adapter
+        // without counting the same usage event twice.
+        const existingEvent = byId.get(event.id);
+        const enriched = { ...existingEvent };
+        for (const field of ["product", "model", "usageType", "chargeCategory", "currency", "rawUsage"]) {
+          if ((enriched[field] === undefined || enriched[field] === null || enriched[field] === "") && event[field] !== undefined && event[field] !== null && event[field] !== "") enriched[field] = event[field];
+        }
+        byId.set(event.id, enriched);
+        continue;
+      }
       byId.set(event.id, event);
       added++;
     }

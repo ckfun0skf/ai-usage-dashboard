@@ -160,5 +160,5 @@ $("#usage-chart").addEventListener("mouseleave",()=>{state.hoveredIndex=-1;rende
 $("#close-detail").addEventListener("click",()=>$("#product-detail-backdrop").hidden=true);$("#product-detail-backdrop").addEventListener("click",e=>{if(e.target===$("#product-detail-backdrop"))$("#product-detail-backdrop").hidden=true;});
 $("#view-product-events").addEventListener("click",()=>{state.search=state.selectedProduct;$("#event-search").value=state.search;state.page=1;$("#product-detail-backdrop").hidden=true;renderEvents(activeRange());$("#events-subtitle").textContent="Filtered to "+state.selectedProduct;document.querySelector(".table-panel").scrollIntoView({behavior:"smooth",block:"start"});});
 window.addEventListener("resize",()=>renderChart(activeRange()));
-try{const saved=await usageStore.load();if(saved?.events?.length){state.events=saved.events;state.sourceName=saved.sourceName||"Saved usage history";state.skippedRows=saved.skippedRows||0;state.range="all";}}catch(error){console.warn("Browser storage unavailable:",error);}
+try{const saved=await usageStore.load();if(saved?.events?.length){state.events=saved.events;state.sourceName=saved.sourceName||"Saved usage history";state.skippedRows=saved.skippedRows||0;state.lastImport=saved.lastImport||null;state.range="all";}}catch(error){console.warn("Browser storage unavailable:",error);}
 render();

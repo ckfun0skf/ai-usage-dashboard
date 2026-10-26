@@ -1,58 +1,38 @@
 # AI Usage Dashboard
 
-A small, browser-only analytics dashboard with a Dynatrace-inspired observability layout.
+A browser-only analytics dashboard for understanding where AI token usage is going and when it happens.
 
-## MVP scope
+## MVP
 
-- Import a Grok Usage CSV export.
-- Parse the JSON in the `Usage` column into prompt, completion, cached prompt, and cache-write token metrics.
-- Explore token totals over a selectable time range, an adaptive time-series chart, token composition, and individual events.
-- Search events and export the current time-range view to CSV.
-- Accumulate repeated CSV imports in IndexedDB: add new events, deduplicate repeated events, and retain older events missing from later files.
+- Dedicated Import page with Model Provider and File Format selectors. Grok + CSV are selected by default.
+- Drag and drop a Grok Usage CSV or click the drop area to open the system file chooser. Import starts automatically.
+- Dashboard KPIs for total tokens, usage events, input, output and cached tokens.
+- Daily token trend with selectable metrics and point details.
+- Usage-type pie chart with exact token counts and percentage share.
+- Product usage ranking; select a product to inspect its totals by usage type, model and day.
+- Searchable usage records and CSV export for the selected date range.
+- Repeated imports accumulate in IndexedDB. Older records remain and duplicate event IDs are skipped.
 
 ## Privacy and storage
 
-- CSV parsing and analytics run in the browser.
-- Imported usage events are merged into this browser's IndexedDB. New imports never replace or delete older events, and duplicate event IDs are ignored. Data is not uploaded to an application server.
-- There is no server-side database or backend API.
-- The app does not load charting libraries or fonts from a CDN; visualizations use native Canvas and CSS.
-- Browser site-data clearing removes the saved dataset. Use a browser profile you trust if the CSV contains sensitive usage information.
+- CSV parsing and analytics run in the browser. Imported records are stored in IndexedDB on this device.
+- No application server, backend API, or server-side database is used.
+- Clearing browser site data removes the saved dataset. Use a browser profile you trust if the CSV contains sensitive usage information.
 
-## Architecture: adapter-based ingestion
+## Adapter architecture
 
-```text
-src/
-  core/csv.js                 Generic CSV parser
-  adapters/grok-usage-csv.js  Grok CSV validation + normalization
-  storage/usage-store.js      Browser IndexedDB persistence
-  app.js                      UI, filtering, aggregation, charts
-```
-
-The ingestion boundary is intentionally modular. To add another provider or file format:
-
-1. Create an adapter under `src/adapters/` implementing `id`, `label`, `supports(fileName, headerText)`, and `parse(text)`.
-2. Return normalized events with `timestamp`, `model`, `prompt`, `completion`, `cached`, `cacheWrite`, `total`, `usageType`, `cost`, and `currency`.
-3. Register the adapter in `usageAdapters` in `src/adapters/grok-usage-csv.js` (this registry can be moved into its own module as more adapters are added). Ensure each normalized event has a stable unique `id`; repeated imports are deduplicated by this key.
-
-The UI and charts consume normalized events rather than provider-specific columns.
+The app consumes normalized usage events. Add another provider or format by implementing an adapter with `id`, `label`, `supports(fileName, headerText)`, and `parse(text)` in `src/adapters/`, then register it in the adapter list. Normalized events include `product`, `model`, `usageType`, `timestamp`, token counts, cost and currency. Give every event a stable unique `id` for deduplication.
 
 ## Run locally
 
-Because this app uses JavaScript ES modules, serve the folder with any static file server. For example:
+Because this app uses JavaScript ES modules, serve the folder with any static file server:
 
 ```bash
 python -m http.server 8000
 ```
 
-Then open `http://localhost:8000`. For GitHub Pages without Actions, configure **Settings → Pages → Deploy from a branch → main → /(root)**. The repository contains only static assets and browser-side JavaScript.
+Then open `http://localhost:8000`. For GitHub Pages without Actions, configure **Settings → Pages → Deploy from a branch → main → /(root)**.
 
-## Supported input
+## Supported Grok CSV
 
-The first adapter expects a CSV with `Event Time`, `Product`, and `Usage` columns. `Usage` must contain JSON token fields such as:
-
-- `prompt-text-tokens`
-- `completion-text-tokens`
-- `cached-prompt-text-tokens`
-- `cache-write-text-tokens`
-
-Rows for products other than `grok-bot` are ignored. Missing `Model` values are shown as `Grok (unspecified)`.
+The first adapter expects `Event Time`, `Product`, and `Usage` columns. The `Usage` field contains JSON fields such as `prompt-text-tokens`, `completion-text-tokens`, `cached-prompt-text-tokens`, and `cache-write-text-tokens`. Product values are retained so the dashboard can group usage by product.
